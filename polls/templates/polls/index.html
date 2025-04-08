@@ -1,0 +1,214 @@
+{% load static %}
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title> Creacion de etiquetas </title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.1/dist/css/bootstrap-select.min.css" rel="stylesheet">
+    <style>
+        header {
+            background-color: #1a1a1a; 
+            height: 20vh;
+            text-align: center;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        body {
+            background-color: #898888;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.7;
+            padding: calc(20vh + 3rem) 1rem 3rem 1rem; 
+        }
+
+        .widget {
+            width: 80vw;
+            max-width: 600px;
+            padding: 1rem;
+            margin: 2rem auto; 
+            border-radius: 1rem;
+            background-color: #fff;
+            box-shadow: 0 0 1rem rgba(0, 0, 0, 0.2);
+        }
+
+        .tabs {
+            display: flex;
+            height: 3.5rem;
+            border-block-end: 1px solid #e9ebec;
+        }
+
+        .tabs input {
+            display: none;
+        }
+
+        .tabs label {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #656d7b;
+            cursor: pointer;
+            transition: color 0.5s ease-in-out;
+        }
+
+        .tabs input:checked + label {
+            color: #101010;
+        }
+
+        .tab-content {
+            padding: 1rem;
+        }
+
+        .tab-content > div {
+            display: none;
+        }
+
+        .tab-content > div.active {
+            display: block;
+        }
+    </style>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const tabs = document.querySelectorAll('.tabs input');
+        const tabContents = document.querySelectorAll('.tab-content > div');
+
+        tabs.forEach((tab, index) => {
+          tab.addEventListener('change', () => {
+            tabContents.forEach((content, contentIndex) => {
+              content.classList.toggle('active', contentIndex === index);
+            });
+          });
+        });
+
+        // Initialize the first tab as visible
+        tabContents.forEach((content, index) => {
+          content.classList.toggle('active', index === 0);
+        });
+      });
+
+      document.addEventListener('DOMContentLoaded', function () {
+        const agregarEtiquetaButton = document.querySelector('button[name="agregar_etiqueta"]');
+        const tableBody = document.querySelector('.tab-content-1 table tbody');
+
+        agregarEtiquetaButton.addEventListener('click', function (event) {
+        event.preventDefault(); // Prevent form submission
+
+        // Create a new row
+        const newRow = document.createElement('tr');
+
+        // Create the "Pieza" cell
+        const piezaCell = document.createElement('td');
+        const piezaInput = document.createElement('input');
+        piezaInput.name = 'pieza';
+        piezaInput.placeholder = 'RL-2503';
+        piezaCell.appendChild(piezaInput);
+
+        // Create the "Cantidad" cell
+        const cantidadCell = document.createElement('td');
+        const cantidadInput = document.createElement('input');
+        cantidadInput.name = 'cantidad';
+        cantidadInput.placeholder = '10';
+        cantidadCell.appendChild(cantidadInput);
+
+        // Append cells to the new row
+        newRow.appendChild(piezaCell);
+        newRow.appendChild(cantidadCell);
+
+        // Append the new row to the table body
+        tableBody.appendChild(newRow);
+        });
+    });
+    </script>
+    
+  </head>
+
+<header>
+    <img src="{% static 'polls/img/logo.png' %}" alt="Logo" style="height: 100%; float: left">
+</header>
+
+<body>
+
+<form method="post">
+    {% csrf_token %}
+
+ <div class="widget">
+    <div class="tabs">
+        <input 
+            type="radio"
+            id="tab1"
+            name="tabs"
+            checked="checked"
+        >
+        <label for="tab1"> Piezas </label>
+
+        <input 
+            type="radio"
+            id="tab2"
+            name="tabs"
+        >
+        <label for="tab2"> Impresoras </label>
+
+        <input 
+            type="radio"
+            id="tab3"
+            name="tabs"
+        >
+        <label for="tab3"> Etiquetas </label>
+    </div>
+
+    <div class="tab-content">
+        <div class="tab-content-1">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th scope="col"> Pieza </th>
+                        <th scope="col"> Cantidad </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <td><input name="pieza" placeholder="RL-2503"> </td>
+                    <td><input name="cantidad" placeholder="10"> </td>
+                </tbody>
+            </table>
+
+            <center><button type="submit" name = "agregar_etiqueta" class="btn btn-primary"> Agregar etiqueta </button></center>
+    </div>
+
+        <div class="tab-content-2">
+            <h1 style="font-size: 25px; text-align: center;"> Ingrese el tamaño en mm deseado para su etiqueta </h1>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th scope="col"> Ancho </th>
+                            <th scope="col"> Alto </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <td><input name = "ancho" placeholder="72"> mm </td>
+                        <td><input name="alto" placeholder="9.5"> mm </td>
+                    </tbody>
+                </table>
+        </div>
+
+        <div class="tab-content-3">
+            {% if qr_code %}
+            <h1 style="font-size: 20px">QR para: {{ pieza }}</h2>
+            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
+        {% endif %}
+        </div>
+    </div>
+ </div>
+
+</form>
+
+</body>
+
+</html>
