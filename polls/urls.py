@@ -1,8 +1,7 @@
 from django.urls import path
-from . import views
+from .views import createView
 
 urlpatterns = [
-    path("", views.index, name="index"),
-    path("historial/", views.past_logs, name="past_logs"),
-    path("template/", views.template, name="template"),
+    path('', createView.as_view(), name='create-view'),
+    #path("historial/", LogsListView.as_view(), name="past_logs"),
 ]
