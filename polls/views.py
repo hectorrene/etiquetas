@@ -34,9 +34,11 @@ def index(request):
         
     return render(request, "polls/index.html")
 
-def detail(request):
-    return HttpResponse("You're looking at question")
-
 def past_logs (request):
-    latest_logs = inventario.objects.order_by("-pub_date")[:5]
-    return render(request, "polls/past_logs.html")
+    latest_logs = inventario.objects.order_by("-pub_date")[:100]
+    return render(request, "polls/past_logs.html", {
+        "logs": latest_logs,
+    })
+
+def template (request):
+    return render(request, "polls/base.html")
