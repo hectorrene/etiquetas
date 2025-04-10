@@ -1,0 +1,20 @@
+{% extends "polls/base.html" %}
+
+{% block title %} Ordenes activas {% endblock %}
+
+{% block content%}
+
+<center><h1> Ordenes de trabajo activas </h1></center>
+
+{% for order in orders %}
+
+<ul>
+    <li>
+        <a href="{% url 'etiquetas' order.id %}"> {{order.order_number}} </a>
+    </li>
+</ul>
+
+{% endfor %}
+
+
+{% endblock %}

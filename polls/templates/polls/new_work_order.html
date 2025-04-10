@@ -1,0 +1,19 @@
+{% extends "polls/base.html" %}
+
+{% block title %} Nueva Orden {% endblock %}
+
+{% block content %}
+
+{% if success_message %}
+<div class="alert alert-success" role="alert">
+    {{ success_message }}
+</div>
+{% endif %}
+
+<form method="post" action="">
+    {% csrf_token %}
+        <label for="work_order"> Ingrese el número de su orden de trabajo </label>
+        <input type="text" id="work_order" name="order_number" class="form-control" placeholder="Orden de trabajo" required>
+        <button type="submit" style="margin-top: 25px;" class="btn btn-primary"> Crear orden de trabajo </button>
+</form>
+{% endblock %}

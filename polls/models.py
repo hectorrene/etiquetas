@@ -1,22 +1,24 @@
 from django.db import models
 
-class orden_trabajo(models.Model):
-    numero_orden = models.CharField(max_length=50, unique=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
+class work_orders(models.Model):
+    order_number = models.CharField(max_length=50, unique=True)
+    pub_date = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"OT-{self.numero_orden}"
+        return self.order_number
 
-class inventario (models.Model):
-    orden_trabajo = models.ForeignKey(orden_trabajo, on_delete=models.CASCADE, related_name='piezas')
-    pieza = models.CharField(max_length=18)
-    cantidad = models.IntegerField(default=0)
+class equipment_labels (models.Model):
+    work_orders = models.ForeignKey(work_orders, on_delete=models.CASCADE, related_name='piezas')
+    equipment = models.CharField(max_length=18)
+    quantity = models.IntegerField(default=0)
+    pub_date = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return self.pieza
+        return self.equipment
     
-class etiquetas (models.Model):
-    nombre = models.CharField(max_length=100, default="")
+class labels (models.Model):
+    name = models.CharField(max_length=100, default="")
     width = models.DecimalField(
         max_digits = 5, 
         decimal_places = 2, 
@@ -28,3 +30,6 @@ class etiquetas (models.Model):
         decimal_places = 2, 
     )
     zpl_template = models.TextField(help_text="Código ZPL con placeholders como {{qr}}, {{pieza}}, etc.")
+
+    def __str__(self):
+        return self.name
