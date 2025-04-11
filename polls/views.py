@@ -1,17 +1,17 @@
-import qrcode
-from io import BytesIO
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.core.files.base import ContentFile
-import base64
 from .models import work_orders, equipment_labels, labels
 from django.utils import timezone
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
+from django.contrib import messages
 from reportlab.pdfgen import canvas
-
+import io
+import qrcode
+from reportlab.lib.utils import ImageReader
 
 #View para ver las etiquetas impresas en el ultimo mes
 class LogsListView(ListView):
@@ -85,36 +85,65 @@ class ImprimirDetailView (DetailView):
         context["labels"] = labels
         return context
     
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        label_id = request.POST.get("label_id")
+        action = request.POST.get("action")
+
+        if action == "delete" and label_id:
+            try:
+                label = equipment_labels.objects.get(id=label_id, work_orders=self.object)
+                label.delete()
+                messages.success(request, "Etiqueta eliminada exitosamente.")
+            except equipment_labels.DoesNotExist:
+                messages.error(request, "Etiqueta no encontrada.")
+
+
+        return redirect("imprimir", pk=self.object.pk) 
+    
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("pdf") == "true":
+            return self.pdf()
+        return super().get(request, *args, **kwargs)
+    
+
+    def pdf (self):
+        self.object = self.get_object()
+        buffer = io.BytesIO()
+        custom_size = (1.2390 * 72, 0.3950 * 72) #tamaño de la etiqueta (72mm x 9.5mm)
+        p = canvas.Canvas(buffer, pagesize=custom_size) #hace el pdf del tamaño de la etiqueta
+
+        labels = equipment_labels.objects.filter(work_orders=self.object) #obtiene las etiquetas de la orden de trabajo
+
+        for label in labels:
+            p.setFont("Helvetica", 6) #tipo de letra y tamaño
+            data = label.equipment
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+
+            #Guardar la imagen en un buffer temporal para que reportlab la tolere
+            img_buffer = io.BytesIO()
+            img.save(img_buffer, format="PNG")
+            img_buffer.seek(0)
+
+            p.drawImage(ImageReader(img_buffer), 5, 2, width=custom_size[1], height=custom_size[1]) #escribe el qr en la etiqueta
+            p.drawString(30, 10, str(label.equipment)) #escribe el nombre de la etiqueta
+            
+            # Finalizar la página actual y pasar a la siguiente
+            p.showPage()
+
+        p.save()
+        buffer.seek(0) # Regresa el buffer al inicio para leerlo desde el principio
+        #Esto hace que se descargue
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="reporte.pdf"' #camgiarle el nombre al de la pieza
+        return response
+
+    
 #View para ver las ordenes de trabajo activas antes de imprimirlas 
 class OrdenesListView (ListView):
     model = work_orders
     template_name = "polls/ordenes.html"
     context_object_name = "orders"
-
-def print (request,pk):
-    order = get_object_or_404(work_orders, pk=pk)
-    etiquetas = equipment_labels.objects.filter(work_orders=order)
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="etiquetas_{order.order_number}.pdf"'
-    p = canvas.Canvas(response)
-    y = 750  # Posición inicial en el eje Y
-    
-    for etiqueta in etiquetas:
-        # Generar el código QR
-        qr = qrcode.make(etiqueta.equipment)
-        buffer = BytesIO()
-        qr.save(buffer, format="PNG")
-        buffer.seek(0)
-
-        # Dibujar el código QR en el PDF
-        p.drawImage(buffer, 50, y, width=100, height=100)
-        p.drawString(200, y + 40, f"Equipo: {etiqueta.equipment}")
-        p.drawString(200, y + 20, f"Cantidad: {etiqueta.quantity}")
-        y -= 150  # Mover hacia abajo para la siguiente etiqueta
-
-        if y < 100:  # Si no hay espacio, crear una nueva página
-            p.showPage()
-            y = 750
-
-    p.save()
-    return response
