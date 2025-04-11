@@ -1,0 +1,24 @@
+{% extends "polls/base.html" %}
+
+{% block title %} Ordenes activas {% endblock %}
+
+{% block content%}
+
+<div class = "container">
+
+    <center><h1> Seleccione una orden para imprimir  </h1></center>
+
+    {% for order in orders %}
+
+    <div class="navegador">
+        <ul style="list-style-type: none; text-align: center; margin-top: 50px;">
+            <li style="margin-bottom: 10px;">
+                <a href="{% url 'imprimir' order.id %}"> {{order.order_number}} </a>
+            </li>
+        </ul>
+    </div>
+
+    {% endfor %}
+</div>
+
+{% endblock %}

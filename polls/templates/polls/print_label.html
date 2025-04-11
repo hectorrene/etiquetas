@@ -1,0 +1,36 @@
+{% extends "polls/base.html" %}
+
+{% block title %} Imprimir etiqueta {% endblock %}
+
+{% block content%}
+
+    <center><h1> Detalles de etiqueta para impresión </h1></center>
+
+        <table class="table table-striped table-bordered table-hover" style="margin-top: 40px;">
+            <thead class="tables-success">
+                <tr>
+                    <th scope="col"> Orden de trabajo </th>
+                    <th scope="col"> Pieza </th>
+                    <th scope="col"> Cantidad </th>
+                    <th scope="col"> Fecha </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for label in labels %}
+                    <tr>
+                        <td> {{label.work_orders}} </td>
+                        <td> {{label.equipment}} </td>
+                        <td> {{label.quantity}} </td>
+                        <td> {{label.pub_date}} </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+
+        <center>
+            <button type="button" class="btn btn-primary" onclick="window.print();" style="margin-top: 20px;"> 
+                Imprimir etiqueta 
+            </button>
+        </center>
+{% endblock %}
