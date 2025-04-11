@@ -12,6 +12,7 @@ from reportlab.pdfgen import canvas
 import io
 import qrcode
 from reportlab.lib.utils import ImageReader
+import datetime
 
 #View para ver las etiquetas impresas en el ultimo mes
 class LogsListView(ListView):
@@ -19,11 +20,19 @@ class LogsListView(ListView):
     template_name = "polls/logs.html"
     context_object_name = "logs"
 
+    def get_queryset(self):
+        today = timezone.now()
+        last_month = today - datetime.timedelta(days=30)
+        return equipment_labels.objects.filter(pub_date__gte=last_month).order_by("-pub_date")
+
 #View para ver las ordenes de trabajo activas
 class WorkOrderListView(ListView):
     model = work_orders
     template_name = "polls/work_order.html"
     context_object_name = "orders"
+    
+    def get_queryset(self):
+        return work_orders.objects.order_by("-pub_date")[:50]
 
 #View para agregarle etiquetas a una orden de trabajo
 class CreateLabelView(CreateView):
@@ -90,6 +99,7 @@ class ImprimirDetailView (DetailView):
         label_id = request.POST.get("label_id")
         action = request.POST.get("action")
 
+        # Permite borrar etiquetas antes de imprimir
         if action == "delete" and label_id:
             try:
                 label = equipment_labels.objects.get(id=label_id, work_orders=self.object)
@@ -101,45 +111,46 @@ class ImprimirDetailView (DetailView):
 
         return redirect("imprimir", pk=self.object.pk) 
     
+    #Manda generar el pdf
     def get(self, request, *args, **kwargs):
         if request.GET.get("pdf") == "true":
             return self.pdf()
         return super().get(request, *args, **kwargs)
     
-
-    def pdf (self):
+    #hace el pdf y el codigo QR
+    def pdf(self):
         self.object = self.get_object()
         buffer = io.BytesIO()
-        custom_size = (1.2390 * 72, 0.3950 * 72) #tamaño de la etiqueta (72mm x 9.5mm)
-        p = canvas.Canvas(buffer, pagesize=custom_size) #hace el pdf del tamaño de la etiqueta
+        custom_size = (1.2390 * 72, 0.3950 * 72)
+        p = canvas.Canvas(buffer, pagesize=custom_size)
 
-        labels = equipment_labels.objects.filter(work_orders=self.object) #obtiene las etiquetas de la orden de trabajo
+        labels = equipment_labels.objects.filter(work_orders=self.object)
 
         for label in labels:
-            p.setFont("Helvetica", 6) #tipo de letra y tamaño
-            data = label.equipment
-            qr = qrcode.QRCode(version=1, box_size=10, border=5)
-            qr.add_data(data)
-            qr.make(fit=True)
-            img = qr.make_image(fill_color="black", back_color="white")
+            for serial in range(1, label.quantity + 1):
+                p.setFont("Helvetica", 3)
+                data = label.equipment + "-" + str(serial).zfill(2)  # Serial number with leading zeros
 
-            #Guardar la imagen en un buffer temporal para que reportlab la tolere
-            img_buffer = io.BytesIO()
-            img.save(img_buffer, format="PNG")
-            img_buffer.seek(0)
+                qr = qrcode.QRCode(version=1, box_size=10, border=5)
+                qr.add_data(data)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
 
-            p.drawImage(ImageReader(img_buffer), 5, 2, width=custom_size[1], height=custom_size[1]) #escribe el qr en la etiqueta
-            p.drawString(30, 10, str(label.equipment)) #escribe el nombre de la etiqueta
-            
-            # Finalizar la página actual y pasar a la siguiente
-            p.showPage()
+                img_buffer = io.BytesIO()
+                img.save(img_buffer, format="PNG")
+                img_buffer.seek(0)
 
-        p.save()
-        buffer.seek(0) # Regresa el buffer al inicio para leerlo desde el principio
-        #Esto hace que se descargue
+                p.drawImage(ImageReader(img_buffer), 5, 2, width=custom_size[1], height=custom_size[1])
+                p.drawString(30, 10, f"{label.equipment}-{str(serial).zfill(2)}")
+                p.showPage()  # Termina la página actual
+
+        p.save()  # Aquí sí: después de todo el for
+        buffer.seek(0)
+
         response = HttpResponse(buffer, content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="reporte.pdf"' #camgiarle el nombre al de la pieza
+        response['Content-Disposition'] = f'attachment; filename="orden_{self.object.order_number}.pdf"'
         return response
+
 
     
 #View para ver las ordenes de trabajo activas antes de imprimirlas 
@@ -147,3 +158,6 @@ class OrdenesListView (ListView):
     model = work_orders
     template_name = "polls/ordenes.html"
     context_object_name = "orders"
+
+    def get_queryset(self):
+        return work_orders.objects.order_by("-pub_date")[:50]
