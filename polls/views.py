@@ -13,6 +13,9 @@ import io
 import qrcode
 from reportlab.lib.utils import ImageReader
 import datetime
+from django.contrib.auth.decorators import user_passes_test, login_required
+
+#VISTAS DE CONSULTAS
 
 #View para ver las etiquetas impresas en el ultimo mes
 class LogsListView(ListView):
@@ -33,6 +36,85 @@ class WorkOrderListView(ListView):
     
     def get_queryset(self):
         return work_orders.objects.order_by("-pub_date")[:50]
+
+#View para ver los detalles de una orden de trabajo antes de imprimirla , generación de QR e impresión
+class ImprimirDetailView (DetailView):
+    model = work_orders
+    template_name = "polls/print_label.html"
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        labels = equipment_labels.objects.filter(work_orders=self.object)
+        context["labels"] = labels
+        return context
+    
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        label_id = request.POST.get("label_id")
+        action = request.POST.get("action")
+
+        # Permite borrar etiquetas antes de imprimir
+        if action == "delete" and label_id:
+            try:
+                label = equipment_labels.objects.get(id=label_id, work_orders=self.object)
+                label.delete()
+                messages.success(request, "Etiqueta eliminada exitosamente.")
+            except equipment_labels.DoesNotExist:
+                messages.error(request, "Etiqueta no encontrada.")
+
+
+        return redirect("imprimir", pk=self.object.pk) 
+    
+    #Manda generar el pdf
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("pdf") == "true":
+            return self.pdf()
+        return super().get(request, *args, **kwargs)
+    
+    #hace el pdf y el codigo QR
+    def pdf(self):
+        self.object = self.get_object()
+        buffer = io.BytesIO()
+        custom_size = (1.2390 * 72, 0.3950 * 72)
+        p = canvas.Canvas(buffer, pagesize=custom_size)
+
+        labels = equipment_labels.objects.filter(work_orders=self.object)
+
+        for label in labels:
+            for serial in range(1, label.quantity + 1):
+                p.setFont("Helvetica", 3)
+                data = label.equipment + "-" + str(serial).zfill(2)  # Serial number with leading zeros
+
+                qr = qrcode.QRCode(version=2, box_size=10, border=5)
+                qr.add_data(data)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
+
+                img_buffer = io.BytesIO()
+                img.save(img_buffer, format="PNG")
+                img_buffer.seek(0)
+
+                p.drawImage(ImageReader(img_buffer), 5, 2, width=custom_size[1], height=custom_size[1])
+                p.drawString(30, 10, f"{label.equipment}-{str(serial).zfill(2)}")
+                p.showPage()  # Termina la página actual
+
+        p.save()  # Aquí sí: después de todo el for
+        buffer.seek(0)
+
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="orden_{self.object.order_number}.pdf"'
+        return response
+    
+#View para ver las ordenes de trabajo activas antes de imprimirlas
+class OrdenesListView (ListView):
+    model = work_orders
+    template_name = "polls/ordenes.html"
+    context_object_name = "orders"
+
+    def get_queryset(self):
+        return work_orders.objects.order_by("-pub_date")[:50]
+
+#VISTAS DE CREACION Y EDICION
 
 #View para agregarle etiquetas a una orden de trabajo
 class CreateLabelView(CreateView):
@@ -83,81 +165,3 @@ class CreateWorkOrderView (CreateView):
         form.instance.created_at = timezone.now()
         return super().form_valid(form)
     
-#View para ver los detalles de una orden de trabajo antes de imprimirla 
-class ImprimirDetailView (DetailView):
-    model = work_orders
-    template_name = "polls/print_label.html"
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        labels = equipment_labels.objects.filter(work_orders=self.object)
-        context["labels"] = labels
-        return context
-    
-    def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        label_id = request.POST.get("label_id")
-        action = request.POST.get("action")
-
-        # Permite borrar etiquetas antes de imprimir
-        if action == "delete" and label_id:
-            try:
-                label = equipment_labels.objects.get(id=label_id, work_orders=self.object)
-                label.delete()
-                messages.success(request, "Etiqueta eliminada exitosamente.")
-            except equipment_labels.DoesNotExist:
-                messages.error(request, "Etiqueta no encontrada.")
-
-
-        return redirect("imprimir", pk=self.object.pk) 
-    
-    #Manda generar el pdf
-    def get(self, request, *args, **kwargs):
-        if request.GET.get("pdf") == "true":
-            return self.pdf()
-        return super().get(request, *args, **kwargs)
-    
-    #hace el pdf y el codigo QR
-    def pdf(self):
-        self.object = self.get_object()
-        buffer = io.BytesIO()
-        custom_size = (1.2390 * 72, 0.3950 * 72)
-        p = canvas.Canvas(buffer, pagesize=custom_size)
-
-        labels = equipment_labels.objects.filter(work_orders=self.object)
-
-        for label in labels:
-            for serial in range(1, label.quantity + 1):
-                p.setFont("Helvetica", 3)
-                data = label.equipment + "-" + str(serial).zfill(2)  # Serial number with leading zeros
-
-                qr = qrcode.QRCode(version=1, box_size=10, border=5)
-                qr.add_data(data)
-                qr.make(fit=True)
-                img = qr.make_image(fill_color="black", back_color="white")
-
-                img_buffer = io.BytesIO()
-                img.save(img_buffer, format="PNG")
-                img_buffer.seek(0)
-
-                p.drawImage(ImageReader(img_buffer), 5, 2, width=custom_size[1], height=custom_size[1])
-                p.drawString(30, 10, f"{label.equipment}-{str(serial).zfill(2)}")
-                p.showPage()  # Termina la página actual
-
-        p.save()  # Aquí sí: después de todo el for
-        buffer.seek(0)
-
-        response = HttpResponse(buffer, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="orden_{self.object.order_number}.pdf"'
-        return response
-
-
-    
-#View para ver las ordenes de trabajo activas antes de imprimirlas 
-class OrdenesListView (ListView):
-    model = work_orders
-    template_name = "polls/ordenes.html"
-    context_object_name = "orders"
-
-    def get_queryset(self):
-        return work_orders.objects.order_by("-pub_date")[:50]
