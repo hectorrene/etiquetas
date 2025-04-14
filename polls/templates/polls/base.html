@@ -9,27 +9,32 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.1/dist/css/bootstrap-select.min.css" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="{% static 'polls/img/pestana.png' %}">
 
+    <!-- CSS -->
     <style>
         header {
             height: auto; 
         }
 
+        /* Body format */
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
         }
         
+        /* Red line on top of header */
         .linea-roja {
             background-color: #f44336; 
             height: 8vh;
             width: 100%; 
         }
 
+        /* Black line on the bottom of the header */
         .linea {
             background-color: black;
             height: 1px;
         }
 
+        /* Header content format */
         .header-content {
             background-color: #898888;
             height: 12vh;
@@ -39,10 +44,12 @@
             padding: 0 20px; 
         }
 
+        /* Logo format */
         .header-content img {
             height: 60px; 
         }
 
+        /* Navegation bar format */
         .navbar ul {
             list-style: none; 
             margin: 0;
@@ -51,19 +58,23 @@
             margin-right: 25px;
         }
 
+        /* Space between navegation format items */
         .navbar ul li {
             margin-left: 50px; 
         }
 
+        /* Removes link style to the items in the navigation bar */
         .navbar ul li a {
             text-decoration: none;
             color: white;
         }
 
+        /* Adds format to navegation items while hovering */
         .navbar ul li a:hover {
             color: red; 
         }
 
+        /* Main content format  */
         main {
             margin-top: 35px;
             margin-left: 100px;
@@ -79,6 +90,7 @@
         color: #333;
         }
 
+        /* Tables format */
         table {
             margin: 0 auto;
             border-collapse: collapse;
@@ -86,16 +98,19 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
           }
           
+          /* Table's head format */
           thead {
             background-color: #f44336;
             color: white;
           }
           
+          /* Table's head row format */
           th, td {
             padding: 12px 16px;
             text-align: center;
           }
           
+          /* both create stripes in the table */
           tbody tr:nth-child(even) {
             background-color: #f9f9f9;
           }
@@ -179,6 +194,7 @@
 </head>
 <body>
 
+    <!-- Header content -->
     <header>
         <div class="linea-roja"></div>
         <div class="linea"></div>
@@ -204,10 +220,11 @@
 
     <main>
         {% block content %}
-        <!-- Aquí va el contenido de cada página -->
+        <!-- Each page's content -->
         {% endblock %}
     </main>
 
+    <!-- Bootstrap java scripts links -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.1/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S8m4Ck2tOz8a4Q1o1R1zFtm1p6jizo1pFf5ckz4eCk/h" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgEpKzvD9KK7fF0GLc2e3zU1iImex9fNfYCBVRp3voPxTnNgyg" crossorigin="anonymous"></script>

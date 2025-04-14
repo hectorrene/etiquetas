@@ -1,19 +1,17 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.http import HttpResponse
-from django.core.files.base import ContentFile
-from .models import work_orders, equipment_labels, labels
+from .models import work_orders, equipment_labels
 from django.utils import timezone
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, DetailView, CreateView
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.contrib import messages
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 import io
 import qrcode
-from reportlab.lib.utils import ImageReader
 import datetime
-from django.contrib.auth.decorators import user_passes_test, login_required
 
 #VISTAS DE CONSULTAS
 

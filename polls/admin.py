@@ -5,4 +5,4 @@ admin.site.register(work_orders)
 admin.site.register(equipment_labels)
 admin.site.register(labels)
 
-# Register your models here.
+# Adds models to the django admin site for easier management

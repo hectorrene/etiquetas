@@ -1,5 +1,6 @@
 from django.db import models
 
+#Model to register work orders 
 class work_orders(models.Model):
     order_number = models.CharField(max_length=50, unique=True)
     pub_date = models.DateTimeField(auto_now_add=True)
@@ -8,6 +9,7 @@ class work_orders(models.Model):
     def __str__(self):
         return self.order_number
 
+#Model to register equipment, which later will be used to generate labels 
 class equipment_labels (models.Model):
     work_orders = models.ForeignKey(work_orders, on_delete=models.CASCADE, related_name='piezas')
     equipment = models.CharField(max_length=18)
@@ -16,7 +18,8 @@ class equipment_labels (models.Model):
     
     def __str__(self):
         return self.equipment
-    
+
+#Model to register label's size
 class labels (models.Model):
     name = models.CharField(max_length=100, default="")
     width = models.DecimalField(
