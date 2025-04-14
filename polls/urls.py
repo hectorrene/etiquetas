@@ -7,7 +7,8 @@ from .views import (
     ImprimirDetailView,
     OrdenesListView,
     LoginView,
-    LogoutView,
+    LogoutView, 
+    engineerGuide,
 )
 
 #URL's for each view in the app
@@ -21,6 +22,7 @@ urlpatterns = [
     path("OrdenesActivas/<int:pk>/etiquetas", CreateLabelView.as_view(), name="etiquetas"),
     path("OrdenesActivas/<int:pk>/etiquetas/imprimir", ImprimirDetailView.as_view(), name="imprimir"),
     path("NuevaOrden/", CreateWorkOrderView.as_view(), name="registro_orden"),
+    path("Guia/", engineerGuide, name="guia"),
 ]
 
 
