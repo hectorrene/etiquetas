@@ -48,13 +48,23 @@
 
         <center>
             <form method="get">
-                <input type="hidden" name="code" value="true">
+                <input type="hidden" name="print" value="true">
                 <label for="option"> Seleccione el tipo de codigo que quiere </label>
-                    <select name="option" id="option" onchange="location = this.value;">
-                        <option value="qr"> codigo QR </option>
-                        <option value="barcode"> Codigo de barra </option>
-                    </select>
+                <select name="option" id="option">
+                    <option value = "qr"> codigo QR </option>
+                    <option value = "barcode"> Codigo de barra </option>
+                </select>
                 <br><button type="submit" class="btn btn-primary"> Imprimir </button>
             </form>
         </center>
 {% endblock %}
+
+<!--
+
+    <label for="option"> Seleccione el tipo de codigo que quiere </label>
+        <select name="option" id="option" onchange="location = this.value;">
+            <option value="qr"> codigo QR </option>
+            <option value="barcode"> Codigo de barra </option>
+        </select>
+
+-->

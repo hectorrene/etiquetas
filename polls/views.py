@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from .models import work_orders, equipment_labels, labels
+from .models import work_orders, equipment_labels, labels, work_cells
 from django.utils import timezone
 from django.views.generic import ListView, DetailView, CreateView
 from django.contrib.auth.views import LoginView, LogoutView
@@ -8,7 +8,9 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.contrib import messages
 from zebra import Zebra
+from django.db.models import Q
 import datetime
+
 
 #LIST VIEWS
 
@@ -23,6 +25,20 @@ class LogsListView(ListView):
         today = timezone.now()
         last_month = today - datetime.timedelta(days=30)
         return equipment_labels.objects.filter(pub_date__gte=last_month).order_by("-pub_date")
+
+class SearchResultsView(ListView):
+    model = equipment_labels
+    template_name = "polls/search.html"
+    context_object_name = "equipment_list"
+    
+    #allows to filter by search
+    def get_queryset (self):
+        query = self.request.GET.get("search")
+        if query: 
+            return equipment_labels.objects.filter(
+                Q(equipment__icontains=query) | Q(work_orders__order_number__icontains=query)
+            )
+        return equipment_labels.objects.none() 
 
 #Active work orders
 class WorkOrderListView(ListView):
@@ -42,12 +58,13 @@ class ImprimirDetailView (DetailView):
     #retrieves the equipment assosiated with the work order
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["work_order"] = self.object
         labels = equipment_labels.objects.filter(work_orders=self.object)
         context["labels"] = labels
         return context
     
     # Handles the POST request to delete a label
-    def post(self, request, *args, **kwargs):
+    def pots_delete (self, request, *args, **kwargs):
         self.object = self.get_object()
         label_id = request.POST.get("label_id")
         action = request.POST.get("action")
@@ -61,19 +78,24 @@ class ImprimirDetailView (DetailView):
                 messages.error(request, "Etiqueta no encontrada.")
 
         return redirect("imprimir", pk=self.object.pk) 
-    
-    #calls the zpl generator and the printer
-    def get(self, request, *args, **kwargs):
-        if request.GET.get("zpl") == "true":
-            work_order = self.get_object()
-            work_order.is_active = False
-            work_order.save()
-            zpl = self.create_labels()
-            return self.print_labels(zpl)
-        return super().get(request, *args, **kwargs)
+
+    #Handles the GET request to call the zpl generator and the printer
+    def get_print (self, request, *args, **kwargs):
+        if request.GET.get("print") == "true":
+            option = request.GET.get("option")
+            if option == "qr":
+                work_order = self.get_object()
+                work_order.is_active = False
+                work_order.save()
+                zpl = self.create_labels()
+                return self.print_labels(zpl)
+            elif option == "barcode":
+                print ("barcode process")
+            else: 
+                messages.error(request, "Opcion no valida.")
 
     #creates the zpl format of the labels
-    def create_zpl (part_number):
+    def create_zpl (self, part_number): 
         zpl = f"""
                 ^XA
                 ^PW251
@@ -82,32 +104,35 @@ class ImprimirDetailView (DetailView):
                 ^FO10,30^BQN,2,2
                 ^FDLA,{part_number}^FS
 
-                ^FO60,55^A0N,20,20^{part_number}^FS
+                ^FO60,55^A0N,20,20^FD{part_number}^FS
 
                 ^XZ
-            """
-        
+            """    
         return zpl
-
+    
     #sends the information of the work order to the zpl generator
     def create_labels (self):
         equipments = equipment_labels.objects.filter(work_orders=self.object)
-        labels = ""
+        if not equipments.exists():
+            return HttpResponse("No hay etiquetas asociadas con esta orden de trabajo.", status=400)
+        labels = []
 
         # goes trough each equipment piece and sends the information to the zpl generator
         for equipment in equipments:
             for serial in range (1, equipment.quantity + 1):
                 part_number = equipment.equipment + "-" + str(serial).zfill(2)
-                for _ in range (equipment.quantity):
-                    labels += self.create_zpl(part_number)
+                labels.append(self.create_zpl(part_number))
         return labels
     
     #prints the labels using the zebra printer
-    def print_labels (zpl):
-        z = Zebra()
-        z.setqueue("ZDesigner ZT610-300dpi ZPL")  
-        z.output(zpl)   
-    
+    def print_labels (self, zpl):
+        try:
+            z = Zebra()
+            z.setqueue("ZDesigner ZT610-300dpi ZPL")  
+            z.output("".join(zpl))
+        except Exception as e:
+            messages.error(self.request, f"Error al imprimir: {str(e)}")
+        
 #Active work orders before printing
 class OrdenesListView (ListView):
     model = work_orders
@@ -158,8 +183,13 @@ class CreateLabelView(CreateView):
 class CreateWorkOrderView (CreateView):
     model = work_orders
     template_name = "polls/new_work_order.html"
-    fields = ["order_number"]
+    fields = ["order_number", "work_cell"]
     success_url = reverse_lazy("ordenes")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["work_cells"] = work_cells.objects.all()  
+        return context
 
     #saves the work order and checks for duplicates
     def form_valid(self, form):
