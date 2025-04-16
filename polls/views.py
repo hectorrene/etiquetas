@@ -11,7 +11,6 @@ from zebra import Zebra
 from django.db.models import Q
 import datetime
 
-
 #LIST VIEWS
 
 #Labels made in the last month
@@ -26,6 +25,7 @@ class LogsListView(ListView):
         last_month = today - datetime.timedelta(days=30)
         return equipment_labels.objects.filter(pub_date__gte=last_month).order_by("-pub_date")
 
+#Allows the search bar to work, filter by work cell, work order, equipment or date
 class SearchResultsView(ListView):
     model = equipment_labels
     template_name = "polls/search.html"
@@ -36,7 +36,7 @@ class SearchResultsView(ListView):
         query = self.request.GET.get("search")
         if query: 
             return equipment_labels.objects.filter(
-                Q(equipment__icontains=query) | Q(work_orders__order_number__icontains=query)
+                Q(equipment__icontains=query) | Q(work_orders__order_number__icontains=query) | Q(work_orders__work_cell__work_cell__icontains = query)
             )
         return equipment_labels.objects.none() 
 
@@ -64,7 +64,7 @@ class ImprimirDetailView (DetailView):
         return context
     
     # Handles the POST request to delete a label
-    def pots_delete (self, request, *args, **kwargs):
+    def post (self, request, *args, **kwargs):
         self.object = self.get_object()
         label_id = request.POST.get("label_id")
         action = request.POST.get("action")
@@ -79,20 +79,20 @@ class ImprimirDetailView (DetailView):
 
         return redirect("imprimir", pk=self.object.pk) 
 
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("print") == "true":
+            return self.get_print(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
+
     #Handles the GET request to call the zpl generator and the printer
     def get_print (self, request, *args, **kwargs):
         if request.GET.get("print") == "true":
-            option = request.GET.get("option")
-            if option == "qr":
-                work_order = self.get_object()
-                work_order.is_active = False
-                work_order.save()
-                zpl = self.create_labels()
-                return self.print_labels(zpl)
-            elif option == "barcode":
-                print ("barcode process")
-            else: 
-                messages.error(request, "Opcion no valida.")
+            work_order = self.get_object()
+            work_order.is_active = False
+            work_order.save()
+            zpl = self.create_labels(request)
+            return self.print_labels(zpl)
+        return HttpResponse("Solicitud inválida.", status=400)
 
     #creates the zpl format of the labels
     def create_zpl (self, part_number): 
@@ -110,18 +110,41 @@ class ImprimirDetailView (DetailView):
             """    
         return zpl
     
+    def zpl_barcode (self, part_number): 
+        zpl = f"""
+                ^XA
+                ^PW251
+                ^LL80
+
+                ^FO40,35
+                ^BY1,2,30
+                ^BCN,30,Y,N,N
+                ^{part_number}^FS
+
+                ^XZ
+            """
+        return zpl
+
     #sends the information of the work order to the zpl generator
-    def create_labels (self):
-        equipments = equipment_labels.objects.filter(work_orders=self.object)
+    def create_labels(self, request):
+        # Obtén la orden de trabajo explícitamente
+        work_order = self.get_object()
+        equipments = equipment_labels.objects.filter(work_orders=work_order)
+        selected_option = request.GET.get("option")
+
         if not equipments.exists():
             return HttpResponse("No hay etiquetas asociadas con esta orden de trabajo.", status=400)
+
         labels = []
 
-        # goes trough each equipment piece and sends the information to the zpl generator
+        # Genera etiquetas para cada equipo
         for equipment in equipments:
-            for serial in range (1, equipment.quantity + 1):
+            for serial in range(1, equipment.quantity + 1):
                 part_number = equipment.equipment + "-" + str(serial).zfill(2)
-                labels.append(self.create_zpl(part_number))
+                if selected_option == "qr":
+                    labels.append(self.create_zpl(part_number))
+                elif selected_option == "barcode":
+                    labels.append(self.zpl_barcode(part_number))
         return labels
     
     #prints the labels using the zebra printer
@@ -130,8 +153,10 @@ class ImprimirDetailView (DetailView):
             z = Zebra()
             z.setqueue("ZDesigner ZT610-300dpi ZPL")  
             z.output("".join(zpl))
+            return HttpResponse("Etiquetas enviadas a impresión correctamente.")
         except Exception as e:
             messages.error(self.request, f"Error al imprimir: {str(e)}")
+            return HttpResponse(f"Error al imprimir: {str(e)}", status=500)
         
 #Active work orders before printing
 class OrdenesListView (ListView):

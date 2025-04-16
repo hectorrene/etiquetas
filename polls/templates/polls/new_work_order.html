@@ -15,13 +15,13 @@
         {% csrf_token %}
             <label for="work_order"><h1> Ingrese el número de su orden de trabajo </h1></label>
             <input type="text" id="work_order" name="order_number" class="form-control" placeholder="Orden de trabajo" required>
-            <select name="work_cell" id="option" style="margin-top: 20px;">
+            <select name="work_cell" id="option" style="margin-top: 20px;" class="form-control" required>
                 <option value = ""> -- Celda de trabajo --</option>
                 {% for work_cell in work_cells %}
                     <option value="{{ work_cell.id }}" style="margin-top: 100px;"> {{work_cell.work_cell}} </option>
                 {% endfor %}
             </select>
-            <br><button type="submit" style="margin-top: 25px;" class="btn btn-primary"> Crear orden de trabajo </button>
+            <button type="submit" style="margin-top: 25px;" class="btn btn-primary"> Crear orden de trabajo </button>
     </form>
 </div>
 {% endblock %}
