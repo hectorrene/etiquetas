@@ -10,6 +10,8 @@ from django.contrib import messages
 from zebra import Zebra
 from django.db.models import Q
 import datetime
+import requests
+import base64
 
 #LIST VIEWS
 
@@ -79,12 +81,13 @@ class ImprimirDetailView (DetailView):
 
         return redirect("imprimir", pk=self.object.pk) 
 
+    #Handles the GET request to call the zpl generator and the printer
     def get(self, request, *args, **kwargs):
         if request.GET.get("print") == "true":
             return self.get_print(request, *args, **kwargs)
         return super().get(request, *args, **kwargs)
 
-    #Handles the GET request to call the zpl generator and the printer
+    #printing method
     def get_print (self, request, *args, **kwargs):
         if request.GET.get("print") == "true":
             work_order = self.get_object()
@@ -94,35 +97,29 @@ class ImprimirDetailView (DetailView):
             return self.print_labels(zpl)
         return HttpResponse("Solicitud inválida.", status=400)
 
-    #creates the zpl format of the labels
-    def create_zpl (self, part_number): 
-        zpl = f"""
-                ^XA
-                ^PW251
-                ^LL80
-
-                ^FO10,30^BQN,2,2
-                ^FDLA,{part_number}^FS
-
-                ^FO60,55^A0N,20,20^FD{part_number}^FS
-
-                ^XZ
-            """    
+    #creates the zpl format for the QR code
+    def create_zpl(self, part_number): 
+        zpl = (
+            "^XA"
+            "^PW251"
+            "^LL80"
+            "^FO10,30^BQN,2,2^FDLA," + part_number + "^FS"
+            "^FO60,55^A0N,20,20^FD" + part_number + "^FS"
+            "^XZ"
+        )
         return zpl
-    
-    def zpl_barcode (self, part_number): 
-        zpl = f"""
-                ^XA
-                ^PW251
-                ^LL80
 
-                ^FO40,35
-                ^BY1,2,30
-                ^BCN,30,Y,N,N
-                ^{part_number}^FS
-
-                ^XZ
-            """
+    def zpl_barcode(self, part_number): 
+        zpl = (
+            "^XA"
+            "^PW251"
+            "^LL80"
+            "^FO40,35"
+            "^BY1,2,30"
+            "^BCN,30,Y,N,N"
+            "^FD" + part_number + "^FS"
+            "^XZ"
+        )
         return zpl
 
     #sends the information of the work order to the zpl generator
@@ -148,15 +145,41 @@ class ImprimirDetailView (DetailView):
         return labels
     
     #prints the labels using the zebra printer
-    def print_labels (self, zpl):
+    def print_labels(self, zpl):
         try:
-            z = Zebra()
-            z.setqueue("ZDesigner ZT610-300dpi ZPL")  
-            z.output("".join(zpl))
-            return HttpResponse("Etiquetas enviadas a impresión correctamente.")
+            images = []
+            errores = []
+
+            for idx, label in enumerate(zpl, start=1):
+                print(f"ZPL generado (#{idx}):\n{label}")
+                response = requests.post(
+                    "http://api.labelary.com/v1/printers/8dpmm/labels/4x2/",
+                    data=label.encode("utf-8"),
+                    headers={"Accept": "application/png"},
+                )
+                if response.status_code == 200:
+                    image_data = base64.b64encode(response.content).decode("utf-8")
+                    images.append(f"data:image/png;base64,{image_data}")
+                    errores.append(None)
+                else:
+                    error_msg = f"Etiqueta #{idx} falló con código {response.status_code}: {response.text}"
+                    images.append(None)
+                    errores.append(error_msg)
+
+            # Construye respuesta HTML con imágenes o errores
+            html = "<h2>Vista previa de etiquetas</h2>"
+            for i, (img, error) in enumerate(zip(images, errores), start=1):
+                html += f"<p><strong>Etiqueta #{i}</strong></p>"
+                if img:
+                    html += f'<img src="{img}" style="margin-bottom: 20px; border:1px solid #ccc;"><br>'
+                else:
+                    html += f'<p style="color:red;">{error}</p><br>'
+
+            return HttpResponse(html)
         except Exception as e:
-            messages.error(self.request, f"Error al imprimir: {str(e)}")
-            return HttpResponse(f"Error al imprimir: {str(e)}", status=500)
+            messages.error(self.request, f"Error inesperado: {str(e)}")
+            return HttpResponse(f"Error inesperado al generar etiquetas: {str(e)}", status=500)
+
         
 #Active work orders before printing
 class OrdenesListView (ListView):
@@ -180,13 +203,14 @@ class CreateLabelView(CreateView):
     template_name = "polls/add_tag.html"
     fields = ["equipment", "quantity"]
 
+    #makes sure the information in the form is valid before registering it
     def form_valid(self, form):
         # Get the related work order using the primary key from the URL
         order = get_object_or_404(work_orders, pk=self.kwargs["pk"])
         form.instance.work_orders = order  # Assign the work_orders field correctly
         equipment = form.cleaned_data["equipment"]
-        
-        if equipment_labels.objects.filter(work_orders=order, equipment=equipment).exists():
+            
+        if equipment_labels.objects.filter(work_orders=order).filter(Q(equipment__iexact=equipment)).exists():
             context = self.get_context_data()
             context["error_message"] = f"La etiqueta para '{equipment}' ya fue ingresada."
             return self.render_to_response(context)
@@ -219,10 +243,9 @@ class CreateWorkOrderView (CreateView):
     #saves the work order and checks for duplicates
     def form_valid(self, form):
         # Check if a work order with the same order_number already exists
-        if work_orders.objects.filter(order_number=form.cleaned_data["order_number"]).exists():
-            print("DUPLICADO DETECTADO")
+        if work_orders.objects.filter(order_number__iexact = form.cleaned_data["order_number"]).exists():
             context = self.get_context_data()
-            context["error_message"] = f"La orden de trabajo para '{form.cleaned_data['order_number']}' ya fue ingresada."
+            context["error_message"] = f"La orden de trabajo ya ha sido ingresada."
             return self.render_to_response(context)
 
         # If no duplicate exists, save the work order

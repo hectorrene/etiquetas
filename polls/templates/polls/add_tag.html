@@ -4,17 +4,20 @@
 
 {% block content %}
 
+<!-- An error message appears in case something fails in the system -->
 {% if error_message %}
     <div class="alert alert-danger" role="alert" style="margin-top: 20px;">
         {{ error_message }}
     </div>
 {% endif %}
 
+<!-- A success message appears when the user adds a label -->
 {% if success_message %}
     <div class="alert alert-success" role="alert" style="margin-top: 20px;">
         {{ success_message }}
     </div>
 {% endif %}
+
 
 <div class="container" style="width: 60%;">
     <center>
@@ -22,9 +25,10 @@
             {{ order.order_number }}
         </h1>
     </center>
+    <!-- Allows the user to post the equipment entered in to the database  -->
         <form method="post" action="">
             {% csrf_token %}
-                <input type="text" id="equipment" name="equipment" class="form-control" placeholder="Número de pieza" required> 
+                <input type="text" id="equipment" name="equipment" class="form-control" placeholder="Número de parte" required> 
                 <input type="number" id="quantity" name="quantity" class="form-control" placeholder="Cantidad de etiquetas necesarias" required style="margin-top: 20px;">
                 <button type="submit" class="btn btn-primary" style="margin-top: 20px;"> Agregar etiqueta </button>
         </form>
