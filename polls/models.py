@@ -28,7 +28,10 @@ class work_orders(models.Model):
 
 #Model to register equipment, which later will be used to generate labels 
 class equipment_labels (models.Model):
-    work_orders = models.ForeignKey(work_orders, on_delete=models.CASCADE, related_name='piezas')
+    label_type = models.CharField(choices = [
+        ('qr', 'QR Code'),
+        ('barcode', 'Código de Barras'),
+    ])
     equipment = models.CharField(max_length=18)
     quantity = models.IntegerField(default=0)
     pub_date = models.DateTimeField(auto_now_add=True)

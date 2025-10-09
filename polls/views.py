@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from .models import work_orders, equipment_labels, labels, work_cells
 from django.utils import timezone
+from django.views import View
 from django.views.generic import ListView, DetailView, CreateView
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import get_object_or_404
@@ -12,67 +13,32 @@ from django.db.models import Q
 import datetime
 import requests
 import base64
-
-
-
-#Active work orders
-class WorkOrderListView(ListView):
-    model = work_orders
-    template_name = "polls/work_order.html"
-    context_object_name = "orders"
-    
-    #retrieves the active work orders
-    def get_queryset(self):
-        return work_orders.objects.filter(is_active=True).order_by("-pub_date")[:50]
+from .forms import LabelForm
 
 #Work order detail view and printing
-class ImprimirDetailView (DetailView):
-    model = work_orders
+
+class PrintLabelsView(View):
     template_name = "polls/print_label.html"
-    
-    #retrieves the equipment assosiated with the work order
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["work_order"] = self.object
-        labels = equipment_labels.objects.filter(work_orders=self.object)
-        context["labels"] = labels
-        return context
-    
-    # Handles the POST request to delete a label
-    def post (self, request, *args, **kwargs):
-        self.object = self.get_object()
-        label_id = request.POST.get("label_id")
-        action = request.POST.get("action")
 
-        if action == "delete" and label_id:
-            try:
-                label = equipment_labels.objects.get(id=label_id, work_orders=self.object)
-                label.delete()
-                messages.success(request, "Etiqueta eliminada exitosamente.")
-            except equipment_labels.DoesNotExist:
-                messages.error(request, "Etiqueta no encontrada.")
+    def get(self, request):
+        form = LabelForm(queryset=equipment_labels.objects.none())
+        return render(request, self.template_name, {"form": form})
 
-        return redirect("imprimir", pk=self.object.pk) 
+    def post(self, request):
+        form = LabelForm(request.POST)
+        if form.is_valid():
+            form.save()
+            label_type = request.POST.get("label_type")
 
-    #Handles the GET request to call the zpl generator and the printer
-    def get(self, request, *args, **kwargs):
-        if request.GET.get("print") == "true":
-            return self.get_print(request, *args, **kwargs)
-        return super().get(request, *args, **kwargs)
+            zpl_data = self.create_labels(label_type)
+            return self.print_labels(zpl_data)
+        else:
+            messages.error(request, "Por favor corrige los errores.")
+            return render(request, self.template_name, {"form": form})
 
-    #printing method
-    def get_print (self, request, *args, **kwargs):
-        if request.GET.get("print") == "true":
-            work_order = self.get_object()
-            work_order.is_active = False
-            work_order.save()
-            zpl = self.create_labels(request)
-            return self.print_labels(zpl)
-        return HttpResponse("Solicitud inválida.", status=400)
-
-    #creates the zpl format for the QR code
-    def create_zpl(self, part_number): 
-        zpl = (
+    # --- MÉTODOS AUXILIARES ---
+    def create_zpl(self, part_number):
+        return (
             "^XA"
             "^PW251"
             "^LL80"
@@ -80,10 +46,9 @@ class ImprimirDetailView (DetailView):
             "^FO60,55^A0N,20,20^FD" + part_number + "^FS"
             "^XZ"
         )
-        return zpl
 
-    def zpl_barcode(self, part_number): 
-        zpl = (
+    def zpl_barcode(self, part_number):
+        return (
             "^XA"
             "^PW251"
             "^LL80"
@@ -93,66 +58,88 @@ class ImprimirDetailView (DetailView):
             "^FD" + part_number + "^FS"
             "^XZ"
         )
-        return zpl
 
-    #sends the information of the work order to the zpl generator
     def create_labels(self, request):
-        # Obtén la orden de trabajo explícitamente
-        work_order = self.get_object()
-        equipments = equipment_labels.objects.filter(work_orders=work_order)
-        selected_option = request.GET.get("option")
-
+        equipments = equipment_labels.objects.all()
         if not equipments.exists():
-            return HttpResponse("No hay etiquetas asociadas con esta orden de trabajo.", status=400)
+            return HttpResponse("No hay etiquetas para esta orden.", status=400)
 
         labels = []
 
-        # Genera etiquetas para cada equipo
+        # Recorre cada fila guardada y genera ZPL según el tipo de etiqueta
         for equipment in equipments:
             for serial in range(1, equipment.quantity + 1):
-                part_number = equipment.equipment + "-" + str(serial).zfill(2)
-                if selected_option == "qr":
+                part_number = f"{equipment.equipment}-{str(serial).zfill(2)}"
+                
+                # Usa el label_type de la fila
+                if equipment.label_type == "qr":
                     labels.append(self.create_zpl(part_number))
-                elif selected_option == "barcode":
+                elif equipment.label_type == "barcode":
                     labels.append(self.zpl_barcode(part_number))
+
         return labels
-    
-    #prints the labels using the zebra printer
-    def print_labels(self, zpl):
+
+    def print_labels(self, zpl_list):
         try:
             images = []
             errores = []
 
-            for idx, label in enumerate(zpl, start=1):
-                print(f"ZPL generado (#{idx}):\n{label}")
+            for idx, label in enumerate(zpl_list, start=1):
+                print(f"--- ZPL etiqueta #{idx} ---")
+                print(label)
+                
+                # URL corregida (sin el / al final puede causar 404)
+                url = "http://api.labelary.com/v1/printers/8dpmm/labels/4x2/0/"
+                
                 response = requests.post(
-                    "http://api.labelary.com/v1/printers/8dpmm/labels/4x2/",
+                    url,
                     data=label.encode("utf-8"),
-                    headers={"Accept": "application/png"},
+                    headers={"Accept": "image/png"}  # Este header está correcto
                 )
+
                 if response.status_code == 200:
                     image_data = base64.b64encode(response.content).decode("utf-8")
                     images.append(f"data:image/png;base64,{image_data}")
                     errores.append(None)
                 else:
-                    error_msg = f"Etiqueta #{idx} falló con código {response.status_code}: {response.text}"
+                    print(f"❌ Error en etiqueta #{idx}: {response.status_code}")
+                    print(f"Respuesta: {response.text}")
                     images.append(None)
-                    errores.append(error_msg)
+                    errores.append(f"Código {response.status_code}: {response.text}")
 
-            # Construye respuesta HTML con imágenes o errores
+            # Construye el HTML
             html = "<h2>Vista previa de etiquetas</h2>"
             for i, (img, error) in enumerate(zip(images, errores), start=1):
                 html += f"<p><strong>Etiqueta #{i}</strong></p>"
                 if img:
-                    html += f'<img src="{img}" style="margin-bottom: 20px; border:1px solid #ccc;"><br>'
+                    html += f"<img src='{img}' style='margin-bottom:20px;border:1px solid #ccc;'><br>"
                 else:
-                    html += f'<p style="color:red;">{error}</p><br>'
+                    html += f"<p style='color:red;'>Error: {error}</p><br>"
 
             return HttpResponse(html)
-        except Exception as e:
-            messages.error(self.request, f"Error inesperado: {str(e)}")
-            return HttpResponse(f"Error inesperado al generar etiquetas: {str(e)}", status=500)
 
+        except Exception as e:
+            return HttpResponse(f"Error inesperado: {str(e)}", status=500)
+    
+    def post(self, request):
+        print("🟢 Se recibió un POST en PrintLabelsView")
+
+        form = LabelForm(request.POST)
+        if form.is_valid():
+            print("✅ form válido")
+            form.save()
+
+            label_type = request.POST.get("label_type")
+            print(f"Tipo de etiqueta seleccionado: {label_type}")
+
+            zpl_data = self.create_labels(label_type)
+            return self.print_labels(zpl_data)
+        else:
+            print("❌ form no válido")
+            print(form.errors)
+            messages.error(request, "Por favor corrige los errores.")
+            return render(request, self.template_name, {"form": form})
+        
 #LIST VIEWS
 
 #Labels made in the last month
