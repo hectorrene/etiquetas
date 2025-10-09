@@ -18,7 +18,7 @@ class work_cells(models.Model):
 
 #Model to register work orders 
 class work_orders(models.Model):
-    work_cell = models.ForeignKey(work_cells, on_delete=models.CASCADE, related_name='work_orders')
+    cell = models.CharField(max_length=50, default="")
     order_number = models.CharField(max_length=50, unique=True)
     pub_date = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)

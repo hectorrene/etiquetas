@@ -6,21 +6,31 @@
 
 
 <div class = "container">
-    <center><h1> Ordenes de trabajo activas </h1></center>
-    <div class="boton" style= "text-align: center; margin-top: 20px;">
-        <button type="button" class="btn btn-primary" onclick="location.href='{% url 'registro_orden' %}'"> Crear orden de trabajo </button>
+    <p class="page-title"> Ordenes de trabajo activas </p>
+    <div class="boton" style= "text-align: center; margin-top: 20px; float: right;">
+        <button type="button" class="btn btn-outline"> Crear orden de trabajo </button>
     </div>
 
-    {% for order in orders %}
-
-        <div class="navegador">
-            <ul style="list-style-type: none; text-align: center; margin-top: 50px;">
-                <li style="margin-bottom: 10px;">
-                    <a href="{% url 'etiquetas' order.id %}"> {{order.order_number}} </a>
-                </li>
-            </ul>
-        </div>
-    {% endfor %}
+    <div class="card">
+        <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr style="text-align: center;">
+                                <th style="text-align: center;"> Work order </th>
+                                <th style="text-align: center;"> celda </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td style="text-align: center;">{{ order.order_number }}</td>
+                                <td style="text-align: center;"> celda </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+    </div>
 </div>
 
 

@@ -13,34 +13,7 @@ import datetime
 import requests
 import base64
 
-#LIST VIEWS
 
-#Labels made in the last month
-class LogsListView(ListView):
-    model = equipment_labels
-    template_name = "polls/logs.html"
-    context_object_name = "logs"
-
-    #retrieves the labels printed in the last_month
-    def get_queryset(self):
-        today = timezone.now()
-        last_month = today - datetime.timedelta(days=30)
-        return equipment_labels.objects.filter(pub_date__gte=last_month).order_by("-pub_date")
-
-#Allows the search bar to work, filter by work cell, work order, equipment or date
-class SearchResultsView(ListView):
-    model = equipment_labels
-    template_name = "polls/search.html"
-    context_object_name = "equipment_list"
-    
-    #allows to filter by search
-    def get_queryset (self):
-        query = self.request.GET.get("search")
-        if query: 
-            return equipment_labels.objects.filter(
-                Q(equipment__icontains=query) | Q(work_orders__order_number__icontains=query) | Q(work_orders__work_cell__work_cell__icontains = query)
-            )
-        return equipment_labels.objects.none() 
 
 #Active work orders
 class WorkOrderListView(ListView):
@@ -180,76 +153,104 @@ class ImprimirDetailView (DetailView):
             messages.error(self.request, f"Error inesperado: {str(e)}")
             return HttpResponse(f"Error inesperado al generar etiquetas: {str(e)}", status=500)
 
+#LIST VIEWS
+
+#Labels made in the last month
+# class LogsListView(ListView):
+#     model = equipment_labels
+#     template_name = "polls/logs.html"
+#     context_object_name = "logs"
+
+#     #retrieves the labels printed in the last_month
+#     def get_queryset(self):
+#         today = timezone.now()
+#         last_month = today - datetime.timedelta(days=30)
+#         return equipment_labels.objects.filter(pub_date__gte=last_month).order_by("-pub_date")
+
+#Allows the search bar to work, filter by work cell, work order, equipment or date
+# class SearchResultsView(ListView):
+#     model = equipment_labels
+#     template_name = "polls/search.html"
+#     context_object_name = "equipment_list"
+    
+#     #allows to filter by search
+#     def get_queryset (self):
+#         query = self.request.GET.get("search")
+#         if query: 
+#             return equipment_labels.objects.filter(
+#                 Q(equipment__icontains=query) | Q(work_orders__order_number__icontains=query) | Q(work_orders__work_cell__work_cell__icontains = query)
+#             )
+#         return equipment_labels.objects.none() 
         
-#Active work orders before printing
-class OrdenesListView (ListView):
-    model = work_orders
-    template_name = "polls/ordenes.html"
-    context_object_name = "orders"
+# #Active work orders before printing
+# class OrdenesListView (ListView):
+#     model = work_orders
+#     template_name = "polls/ordenes.html"
+#     context_object_name = "orders"
 
-    #filters last 50 active work orders
-    def get_queryset(self):
-        return work_orders.objects.filter(is_active=True).order_by("-pub_date")[:50]
+#     #filters last 50 active work orders
+#     def get_queryset(self):
+#         return work_orders.objects.filter(is_active=True).order_by("-pub_date")[:50]
 
-#Engineering guide
-def engineerGuide(request):
-    return render(request, "polls/engineer_guide.html")
+# #Engineering guide
+# def engineerGuide(request):
+#     return render(request, "polls/engineer_guide.html")
 
-#CREATE AND UPDATE VIEWS
+# #CREATE AND UPDATE VIEWS
 
-#Add equipment to a work order
-class CreateLabelView(CreateView):
-    model = equipment_labels
-    template_name = "polls/add_tag.html"
-    fields = ["equipment", "quantity"]
+# #Add equipment to a work order
+# class CreateLabelView(CreateView):
+#     model = equipment_labels
+#     template_name = "polls/add_tag.html"
+#     fields = ["equipment", "quantity"]
 
-    #makes sure the information in the form is valid before registering it
-    def form_valid(self, form):
-        # Get the related work order using the primary key from the URL
-        order = get_object_or_404(work_orders, pk=self.kwargs["pk"])
-        form.instance.work_orders = order  # Assign the work_orders field correctly
-        equipment = form.cleaned_data["equipment"]
+#     #makes sure the information in the form is valid before registering it
+#     def form_valid(self, form):
+#         # Get the related work order using the primary key from the URL
+#         order = get_object_or_404(work_orders, pk=self.kwargs["pk"])
+#         form.instance.work_orders = order  # Assign the work_orders field correctly
+#         equipment = form.cleaned_data["equipment"]
             
-        if equipment_labels.objects.filter(work_orders=order).filter(Q(equipment__iexact=equipment)).exists():
-            context = self.get_context_data()
-            context["error_message"] = f"La etiqueta para '{equipment}' ya fue ingresada."
-            return self.render_to_response(context)
+#         if equipment_labels.objects.filter(work_orders=order).filter(Q(equipment__iexact=equipment)).exists():
+#             context = self.get_context_data()
+#             context["error_message"] = f"La etiqueta para '{equipment}' ya fue ingresada."
+#             return self.render_to_response(context)
 
-    # Save the new tag
-        form.save()
-        context = self.get_context_data()
-        context["success_message"] = "Etiqueta agregada exitosamente."
-        return self.render_to_response(context)
+#     # Save the new tag
+#         form.save()
+#         context = self.get_context_data()
+#         context["success_message"] = "Etiqueta agregada exitosamente."
+#         return self.render_to_response(context)
 
-    def get_context_data(self, **kwargs):
-        # Pass the work order to the template for display
-        context = super().get_context_data(**kwargs)
-        order = get_object_or_404(work_orders, pk=self.kwargs["pk"])
-        context["order"] = get_object_or_404(work_orders, pk=self.kwargs["pk"])
-        return context
+#     def get_context_data(self, **kwargs):
+#         # Pass the work order to the template for display
+#         context = super().get_context_data(**kwargs)
+#         order = get_object_or_404(work_orders, pk=self.kwargs["pk"])
+#         context["order"] = get_object_or_404(work_orders, pk=self.kwargs["pk"])
+#         return context
 
-#Create work order view
-class CreateWorkOrderView (CreateView):
-    model = work_orders
-    template_name = "polls/new_work_order.html"
-    fields = ["order_number", "work_cell"]
-    success_url = reverse_lazy("ordenes")
+# #Create work order view
+# class CreateWorkOrderView (CreateView):
+#     model = work_orders
+#     template_name = "polls/new_work_order.html"
+#     fields = ["order_number", "work_cell"]
+#     success_url = reverse_lazy("ordenes")
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["work_cells"] = work_cells.objects.all()  
-        return context
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         context["work_cells"] = work_cells.objects.all()  
+#         return context
 
-    #saves the work order and checks for duplicates
-    def form_valid(self, form):
-        # Check if a work order with the same order_number already exists
-        if work_orders.objects.filter(order_number__iexact = form.cleaned_data["order_number"]).exists():
-            context = self.get_context_data()
-            context["error_message"] = f"La orden de trabajo ya ha sido ingresada."
-            return self.render_to_response(context)
+#     #saves the work order and checks for duplicates
+#     def form_valid(self, form):
+#         # Check if a work order with the same order_number already exists
+#         if work_orders.objects.filter(order_number__iexact = form.cleaned_data["order_number"]).exists():
+#             context = self.get_context_data()
+#             context["error_message"] = f"La orden de trabajo ya ha sido ingresada."
+#             return self.render_to_response(context)
 
-        # If no duplicate exists, save the work order
-        form.instance.created_at = timezone.now()
-        form.instance.is_active = True
-        return super().form_valid(form)
+#         # If no duplicate exists, save the work order
+#         form.instance.created_at = timezone.now()
+#         form.instance.is_active = True
+#         return super().form_valid(form)
     

@@ -4,237 +4,257 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}MTE{% endblock %}</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.1/dist/css/bootstrap-select.min.css" rel="stylesheet">
-    <link rel="icon" type="image/x-icon" href="{% static 'polls/img/pestana.png' %}">
-
-    <!-- CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %} Sistema OEE {% endblock %}</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'system/img/pestana.png' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        header {
-            height: auto; 
-        }
-
-        /* Body format */
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-        }
-        
-        /* Red line on top of header */
-        .linea-roja {
-            background-color: #f44336; 
-            height: 8vh;
-            width: 100%; 
-        }
-
-        /* Black line on the bottom of the header */
-        .linea {
-            background-color: black;
-            height: 1px;
-        }
-
-        /* Header content format */
-        .header-content {
-            background-color: #898888;
-            height: 12vh;
-            display: flex;
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 0 20px; 
-        }
-
-        /* Logo format */
-        .header-content img {
-            height: 60px; 
-        }
-
-        /* Navegation bar format */
-        .navbar ul {
-            list-style: none; 
+        * {
             margin: 0;
             padding: 0;
-            display: flex; /* Coloca los elementos en línea */
-            margin-right: 25px;
+            box-sizing: border-box;
         }
 
-        /* Space between navegation format items */
-        .navbar ul li {
-            margin-left: 50px; 
+        .obligatorio {
+            color: #ffffff;
         }
 
-        /* Removes link style to the items in the navigation bar */
-        .navbar ul li a {
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #1a1f2e;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        a {
             text-decoration: none;
-            color: white;
+            color: inherit;
+        }
+        a:hover {
+            color: #FFD700;
         }
 
-        /* Adds format to navegation items while hovering */
-        .navbar ul li a:hover {
-            color: red; 
+        /* Header y Navegación */
+        .header {
+            background-color: #2d3748;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #4a5568;
         }
 
-        .navbar ul li button:hover {
-            color: red; 
-        }
-
-        /* Main content format  */
-        main {
-            margin-top: 35px;
-            margin-left: 100px;
-            margin-right: 100px;
-            color: #333;
-        }
-
-        h1 {
-        text-align: center;
-        margin: 40px 0;
-        font-size: 28px;
-        font-weight: bold;
-        color: #333;
-        }
-
-        /* Tables format */
-        table {
-            margin: 0 auto;
-            border-collapse: collapse;
-            width: 80%;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-          }
-          
-          /* Table's head format */
-          thead {
-            background-color: #f44336;
-            color: white;
-          }
-          
-          /* Table's head row format */
-          th, td {
-            padding: 12px 16px;
-            text-align: center;
-          }
-          
-          /* both create stripes in the table */
-          tbody tr:nth-child(even) {
-            background-color: #f9f9f9;
-          }
-          
-          tbody tr:nth-child(odd) {
-            background-color: #ffffff;
-          }
-          
-          table th {
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          
-          .table-bordered th,
-          .table-bordered td {
-            border: 1px solid #ddd;
-          }
-        
-          button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: background-color 0.3s ease;
-            cursor: pointer;
-            margin-bottom: 25px;
-          }
-
-          .btn {
-            border-radius: 5px;
-          }
-          
-          button:hover {
-            background-color: #0056b3;
-          }
-
-          .navegador ul {
-            margin-top: 40px;
+        .nav-container {
             display: flex;
-            flex-direction: column;
-            gap: 20px;
+            justify-content: space-between;
             align-items: center;
-            padding: 0;
-            list-style: none;
-          }
-          
-          .navegador ul li a {
-            background-color: white;
-            color: #007bff;
-            font-weight: 600;
-            text-decoration: none;
-            padding: 12px 30px;
-            border: 2px solid #007bff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            display: inline-block;
-            min-width: 150px;
-            text-align: center;
-          }
-          
-          .navegador ul li a:hover {
-            background-color: #007bff;
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 10px rgba(0, 123, 255, 0.2);
-          }
+            max-width: 1200px;
+            margin: 0 auto;
+        }
 
-          .container {
-            background-color: white;
-            border-radius: 25px;
-            width: 40%;
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-item {
+            position: relative;
+        }
+
+        .nav-item a,
+        .nav-item .nav-link {
+            color: #cbd5e0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            white-space: nowrap;
+        }
+
+        .nav-item a:hover,
+        .nav-item a.active,
+        .nav-item .nav-link:hover {
+            background-color: #4a5568;
+            color: #FFD700;
+        }
+
+        /* User Icon */
+        .user-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: currentColor;
+        }
+
+        /* Contenedor Principal */
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Títulos */
+        .page-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #a0aec0;
+            margin-bottom: 2rem;
+        }
+
+        /* Contenedores y Tarjetas */
+        .card {
+            background-color: #2d3748;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #4a5568;
+        }
+
+        .card-header {
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Tablas */
+        .table-container {
+            background-color: #2d3748;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid #4a5568;
+            overflow-x: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+
+        .table th {
+            background-color: #4a5568;
+            color: #a0aec0;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #4a5568;
+        }
+
+        .table td {
+            padding: 1rem;
+            border-bottom: 1px solid #4a5568;
+            color: #e2e8f0;
+        }
+
+        .table tbody tr:hover {
+            background-color: #374151;
+        }
+
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Formularios */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            color: #ffffff;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #4a5568;
+            border: 1px solid #4a5568;
+            border-radius: 0.375rem;
+            color: #ffffff;
+            font-size: 0.875rem;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: #ffffff;
+            border: 1px solid #4a5568;
+        }
+
+        .btn-outline:hover {
+            background-color: #4a5568;
+        }
+
+        /* Estado Vacío */
+        .empty-state {
             text-align: center;
-          }
-          
+            padding: 3rem;
+            color: #a0aec0;
+        }
+
+        .empty-state-icon {
+            width: 3rem;
+            height: 3rem;
+            margin: 0 auto 1rem;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
-
-    <!-- Header content -->
-    <header>
-        <div class="linea-roja"></div>
-        <div class="linea"></div>
-        <div class="header-content">
-            <a href="{% url 'logs' %}"><img src="{% static 'polls/img/logo.png' %}" alt="Logo"></a>
-            <div class="navbar navbar-expand-lg">
-                <ul>
-                    <li><a href=" {% url 'ordenes' %}"> Ordenes de trabajo </a></li>
-                    <li><a href=" {% url 'print' %} "> Imprimir </a></li>
-                    <li><a href=" {% url 'guia' %}"> Guía para operadores </a></li>
-                    <li>
-                      <form method="post" action="{% url 'logout' %}" style="display: inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn " style="border: none; background: none; padding: 0; color: inherit; cursor: pointer;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
-                                <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
-                            </svg>
-                        </button>
-                    </form>
+    <header class="header">
+        <div class="nav-container">
+            <div class="logo"> <a style="text-decoration: none; color: #ffffff;" ><span style="color: #FF0000; border-color: #000;"> Sistema </span> OEE</div>
+            <nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#"> Máquinas </a>
                     </li>
+                        <div class="dropdown-content">
+                            <form method="POST" action="{% url 'logout' %}" style="margin: 0;">
+                                {% csrf_token %}
+                                <button type="submit" style="all: unset; width: 100%; text-align: left;">
+                                    <div class="nav-link" style="padding: 0.75rem 1rem; color: #cbd5e0; transition: all 0.2s;">
+                                        Cerrar sesión
+                                    </div>
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+
                 </ul>
-            </div>
+            </nav>
         </div>
-        <div class="linea"></div>
     </header>
 
-    <main>
+    <main class="main-container">
         {% block content %}
-        <!-- Each page's content -->
+        
         {% endblock %}
     </main>
 
-    <!-- Bootstrap java scripts links -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.1/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S8m4Ck2tOz8a4Q1o1R1zFtm1p6jizo1pFf5ckz4eCk/h" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgEpKzvD9KK7fF0GLc2e3zU1iImex9fNfYCBVRp3voPxTnNgyg" crossorigin="anonymous"></script>
-
+    {% block extra_js %}{% endblock %}
 </body>
-</html>
+</html> 
