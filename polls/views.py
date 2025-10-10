@@ -24,7 +24,11 @@ class PrintLabelsView(View):
     ZEBRA_PRINTER_NAME = "Zebra ZT411"  # <-- Ajusta según el nombre en Windows o CUPS
 
     def get(self, request):
-        form = LabelForm(queryset=equipment_labels.objects.none())
+        # LabelForm is a ModelForm and does not accept a 'queryset' kwarg.
+        # Instantiate it without passing queryset. If you need to limit
+        # choices for a ModelChoiceField, handle that inside the form class
+        # or pass the queryset to that specific field in __init__.
+        form = LabelForm()
         return render(request, self.template_name, {"form": form})
 
     def post(self, request):
