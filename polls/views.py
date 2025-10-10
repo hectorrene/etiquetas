@@ -20,24 +20,36 @@ from .forms import LabelForm
 class PrintLabelsView(View):
     template_name = "polls/print_label.html"
 
+    # 🔧 Cambia esto al nombre exacto de tu impresora
+    ZEBRA_PRINTER_NAME = "Zebra ZT411"  # <-- Ajusta según el nombre en Windows o CUPS
+
     def get(self, request):
         form = LabelForm(queryset=equipment_labels.objects.none())
         return render(request, self.template_name, {"form": form})
 
     def post(self, request):
+        print("🟢 Se recibió un POST en PrintLabelsView")
+
         form = LabelForm(request.POST)
         if form.is_valid():
+            print("✅ form válido")
             form.save()
-            label_type = request.POST.get("label_type")
 
-            zpl_data = self.create_labels(label_type)
+            label_type = request.POST.get("label_type")
+            print(f"Tipo de etiqueta seleccionado: {label_type}")
+
+            zpl_data = self.create_labels(request)
             return self.print_labels(zpl_data)
         else:
+            print("❌ form no válido")
+            print(form.errors)
             messages.error(request, "Por favor corrige los errores.")
             return render(request, self.template_name, {"form": form})
 
     # --- MÉTODOS AUXILIARES ---
+
     def create_zpl(self, part_number):
+        """Etiqueta QR"""
         return (
             "^XA"
             "^PW251"
@@ -48,6 +60,7 @@ class PrintLabelsView(View):
         )
 
     def zpl_barcode(self, part_number):
+        """Etiqueta de código de barras"""
         return (
             "^XA"
             "^PW251"
@@ -60,85 +73,84 @@ class PrintLabelsView(View):
         )
 
     def create_labels(self, request):
+        """Crea todas las etiquetas en formato ZPL"""
         equipments = equipment_labels.objects.all()
         if not equipments.exists():
             return HttpResponse("No hay etiquetas para esta orden.", status=400)
 
         labels = []
-
-        # Recorre cada fila guardada y genera ZPL según el tipo de etiqueta
         for equipment in equipments:
             for serial in range(1, equipment.quantity + 1):
                 part_number = f"{equipment.equipment}-{str(serial).zfill(2)}"
-                
-                # Usa el label_type de la fila
                 if equipment.label_type == "qr":
                     labels.append(self.create_zpl(part_number))
                 elif equipment.label_type == "barcode":
                     labels.append(self.zpl_barcode(part_number))
-
         return labels
 
     def print_labels(self, zpl_list):
+        """
+        Si hay impresora Zebra con el nombre especificado → imprime directamente.
+        Si no la encuentra → genera vista previa (Labelary).
+        """
         try:
-            images = []
-            errores = []
+            z = Zebra()
+            printers = z.getqueues()
+            print(f"🖨️ Impresoras instaladas: {printers}")
 
-            for idx, label in enumerate(zpl_list, start=1):
-                print(f"--- ZPL etiqueta #{idx} ---")
-                print(label)
-                
-                # URL corregida (sin el / al final puede causar 404)
-                url = "http://api.labelary.com/v1/printers/8dpmm/labels/4x2/0/"
-                
-                response = requests.post(
-                    url,
-                    data=label.encode("utf-8"),
-                    headers={"Accept": "image/png"}  # Este header está correcto
-                )
+            # Buscar la impresora por nombre (exacto o parcial)
+            selected_printer = next(
+                (p for p in printers if self.ZEBRA_PRINTER_NAME.lower() in p.lower()),
+                None
+            )
 
-                if response.status_code == 200:
-                    image_data = base64.b64encode(response.content).decode("utf-8")
-                    images.append(f"data:image/png;base64,{image_data}")
-                    errores.append(None)
-                else:
-                    print(f"❌ Error en etiqueta #{idx}: {response.status_code}")
-                    print(f"Respuesta: {response.text}")
-                    images.append(None)
-                    errores.append(f"Código {response.status_code}: {response.text}")
+            if selected_printer:
+                # --- IMPRESIÓN DIRECTA ---
+                z.setqueue(selected_printer)
+                print(f"📦 Usando impresora: {selected_printer}")
 
-            # Construye el HTML
-            html = "<h2>Vista previa de etiquetas</h2>"
-            for i, (img, error) in enumerate(zip(images, errores), start=1):
-                html += f"<p><strong>Etiqueta #{i}</strong></p>"
-                if img:
-                    html += f"<img src='{img}' style='margin-bottom:20px;border:1px solid #ccc;'><br>"
-                else:
-                    html += f"<p style='color:red;'>Error: {error}</p><br>"
+                for idx, zpl in enumerate(zpl_list, start=1):
+                    print(f"🧾 Enviando etiqueta #{idx}...")
+                    z.output(zpl.encode("utf-8"))
+                    print("✅ Impresa correctamente")
 
-            return HttpResponse(html)
+                return HttpResponse(f"✅ Todas las etiquetas fueron enviadas a '{selected_printer}' correctamente.")
+
+            else:
+                # --- SIN IMPRESORA DETECTADA: usar vista previa ---
+                print(f"⚠️ No se encontró la impresora '{self.ZEBRA_PRINTER_NAME}'. Mostrando vista previa...")
+
+                images = []
+                errores = []
+                for idx, label in enumerate(zpl_list, start=1):
+                    url = "http://api.labelary.com/v1/printers/8dpmm/labels/4x2/0/"
+                    response = requests.post(
+                        url,
+                        data=label.encode("utf-8"),
+                        headers={"Accept": "image/png"}
+                    )
+
+                    if response.status_code == 200:
+                        image_data = base64.b64encode(response.content).decode("utf-8")
+                        images.append(f"data:image/png;base64,{image_data}")
+                        errores.append(None)
+                    else:
+                        errores.append(f"Código {response.status_code}: {response.text}")
+                        images.append(None)
+
+                html = f"<h2>Vista previa (no se encontró la impresora '{self.ZEBRA_PRINTER_NAME}')</h2>"
+                for i, (img, err) in enumerate(zip(images, errores), start=1):
+                    html += f"<p><strong>Etiqueta #{i}</strong></p>"
+                    if img:
+                        html += f"<img src='{img}' style='margin-bottom:20px;border:1px solid #ccc;'><br>"
+                    else:
+                        html += f"<p style='color:red;'>Error: {err}</p><br>"
+
+                return HttpResponse(html)
 
         except Exception as e:
-            return HttpResponse(f"Error inesperado: {str(e)}", status=500)
-    
-    def post(self, request):
-        print("🟢 Se recibió un POST en PrintLabelsView")
-
-        form = LabelForm(request.POST)
-        if form.is_valid():
-            print("✅ form válido")
-            form.save()
-
-            label_type = request.POST.get("label_type")
-            print(f"Tipo de etiqueta seleccionado: {label_type}")
-
-            zpl_data = self.create_labels(label_type)
-            return self.print_labels(zpl_data)
-        else:
-            print("❌ form no válido")
-            print(form.errors)
-            messages.error(request, "Por favor corrige los errores.")
-            return render(request, self.template_name, {"form": form})
+            print(f"❌ Error al imprimir o generar vista previa: {str(e)}")
+            return HttpResponse(f"Error: {str(e)}", status=500)
         
 #LIST VIEWS
 
