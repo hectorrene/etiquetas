@@ -7,8 +7,8 @@
     <h2 style="text-align: center; margin-bottom: 15px;">Generar etiquetas</h2>
 
     <form method="post">
-        {% csrf_token %}
-        {{ formset.management_form }}
+    {% csrf_token %}
+    {# We're using a single form (LabelForm), not a formset, so remove management_form #}
 
         <div class="table-container">
             <table class="table" style="width: 100%; border-collapse: collapse;">
